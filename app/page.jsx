@@ -1,12 +1,17 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { getDestinations, CITY_REGIONS, getScoreColor, displayVibeScore, formatMins, getScoreLabel, getScoreEmoji } from '@/lib/api';
+import { getDestinations, CITY_REGIONS, DESTINATION_TAGS, formatMins } from '@/lib/api';
 import DestinationCard from '@/components/DestinationCard';
 import FeaturedRoutes from '@/components/FeaturedRoutes';
 import { ScorePill, ScoreBadge } from '@/components/ScoreBadge';
 import Link from 'next/link';
 
-const allCities = CITY_REGIONS.flatMap(r => r.cities);
+const REGION_FILTERS = [
+  { label: 'All', value: null },
+  { label: 'Himachal Pradesh', value: 'HP' },
+  { label: 'Uttarakhand', value: 'UK' },
+  { label: 'Jammu & Kashmir', value: 'JK' },
+];
 
 export default function HomePage() {
   const [originCity, setOriginCity] = useState('');
@@ -14,6 +19,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [regionFilter, setRegionFilter] = useState(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('origin_city');
@@ -193,18 +199,40 @@ export default function HomePage() {
 
         {!loading && citySelected && destinations.length > 0 && (
           <section>
-            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
-              All Destinations from {originCity}
-            </h2>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                All Destinations from {originCity}
+              </h2>
+              <div className="flex gap-2 flex-wrap">
+                {REGION_FILTERS.map(f => (
+                  <button
+                    key={f.label}
+                    onClick={() => setRegionFilter(f.value)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors
+                      ${regionFilter === f.value
+                        ? 'bg-sky-500 text-white border-sky-500'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-sky-300'}`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {destinations.map(dest => (
-                <DestinationCard
-                  key={dest.id}
-                  destination={dest}
-                  originCity={originCity}
-                  showTimes={citySelected}
-                />
-              ))}
+              {destinations
+                .filter(dest => {
+                  if (!regionFilter) return true;
+                  const tags = DESTINATION_TAGS[dest.name] || [];
+                  return tags.includes(regionFilter);
+                })
+                .map(dest => (
+                  <DestinationCard
+                    key={dest.id}
+                    destination={dest}
+                    originCity={originCity}
+                    showTimes={citySelected}
+                  />
+                ))}
             </div>
           </section>
         )}
