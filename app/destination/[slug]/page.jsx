@@ -2,14 +2,14 @@ import { getDestinations, getDestinationTrend, getBestTime, getScoreColor, displ
 import HotelLinks from '@/components/HotelLinks';
 import TrendChart from '@/components/TrendChart';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
 
 function slugToName(slug) {
   return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
 export async function generateMetadata({ params }) {
-  const name = slugToName(params.slug);
+  const { slug } = await params;
+  const name = slugToName(slug);
   return {
     title: `${name} — HillRadar`,
     description: `Current crowd score and travel times to ${name} from North India.`,
@@ -17,18 +17,62 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function DestinationPage({ params, searchParams }) {
-  const originCity = searchParams?.origin || '';
-  const name = slugToName(params.slug);
+  // Next.js 15+: params and searchParams are Promises
+  const { slug } = await params;
+  const resolvedSearch = await searchParams;
+  const originCity = resolvedSearch?.origin || '';
+  const name = slugToName(slug);
 
   let destinations = [];
+  let fetchError = false;
   try {
     destinations = await getDestinations(originCity || null);
   } catch {
-    destinations = [];
+    fetchError = true;
   }
 
   const dest = destinations.find(d => d.name.toLowerCase() === name.toLowerCase());
-  if (!dest) notFound();
+
+  // Backend sleeping or truly unknown slug
+  if (!dest) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col">
+        <header className="bg-white border-b border-slate-100 sticky top-0 z-40 shadow-sm">
+          <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
+            <Link href="/" className="text-slate-400 hover:text-slate-700 transition-colors">← Back</Link>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🏔️</span>
+              <Link href="/" className="font-black text-slate-900 text-lg tracking-tight">HillRadar</Link>
+            </div>
+          </div>
+        </header>
+        <main className="flex-1 flex items-center justify-center px-4">
+          <div className="text-center max-w-md">
+            <div className="text-5xl mb-4">😴</div>
+            <h1 className="text-2xl font-black text-slate-900 mb-2">
+              {fetchError ? 'Backend is waking up…' : `${name} not found`}
+            </h1>
+            <p className="text-slate-500 text-sm mb-6">
+              {fetchError
+                ? 'The server is on a free plan and sleeps after 15 minutes of inactivity. Please wait 30 seconds and refresh.'
+                : "We don't have data for this destination yet."}
+            </p>
+            <div className="flex gap-3 justify-center">
+              <a
+                href={`/destination/${slug}${originCity ? `?origin=${encodeURIComponent(originCity)}` : ''}`}
+                className="px-5 py-2.5 bg-sky-500 text-white rounded-full text-sm font-semibold hover:bg-sky-600 transition-colors"
+              >
+                Retry
+              </a>
+              <Link href="/" className="px-5 py-2.5 border border-slate-200 text-slate-600 rounded-full text-sm font-medium hover:border-slate-300 transition-colors">
+                Home
+              </Link>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   let trendData = [];
   let bestTimeData = null;
@@ -42,7 +86,6 @@ export default async function DestinationPage({ params, searchParams }) {
   } catch {}
 
   const c = getScoreColor(dest.congestion_score);
-  const score = vibeScore(dest.congestion_score);
   const scoreDisplay = displayVibeScore(dest.congestion_score);
   const label = getScoreLabel(dest.congestion_score);
   const emoji = getScoreEmoji(dest.congestion_score);
@@ -121,7 +164,9 @@ export default async function DestinationPage({ params, searchParams }) {
               <div>
                 <div className="text-xl font-bold text-slate-900">{bestTimeData.time_slot || '--'}</div>
                 <div className="text-sm text-slate-500">
-                  Avg score: <span className="font-semibold text-green-600">{typeof bestTimeData.avg_score === 'number' ? displayVibeScore(bestTimeData.avg_score) : '--'}/10</span>
+                  Avg score: <span className="font-semibold text-green-600">
+                    {typeof bestTimeData.avg_score === 'number' ? displayVibeScore(bestTimeData.avg_score) : '--'}/10
+                  </span>
                   {bestTimeData.sample_count ? ` · ${bestTimeData.sample_count} samples` : ''}
                 </div>
               </div>
@@ -144,7 +189,7 @@ export default async function DestinationPage({ params, searchParams }) {
         {/* Back CTA */}
         <div className="pb-4">
           <Link
-            href={originCity ? `/?city=${encodeURIComponent(originCity)}` : '/'}
+            href={originCity ? `/?origin=${encodeURIComponent(originCity)}` : '/'}
             className="inline-flex items-center gap-2 text-sm font-semibold text-sky-600 hover:text-sky-700 hover:underline transition-colors"
           >
             ← Browse all hill stations
