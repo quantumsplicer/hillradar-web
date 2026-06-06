@@ -1,16 +1,59 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --blue: #0770E3;
+  --blue-dark: #044EA0;
+  --blue-light: #E8F3FF;
+  --hero-top: #050F2C;
+  --hero-mid: #0B2B6E;
+  --hero-bot: #1461A8;
+  --bg: #F0F6FF;
+  --card: #FFFFFF;
+  --border: #E2EAF4;
+  --text: #0D1B2A;
+  --muted: #64748B;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg);
+  color: var(--text);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-html {
-  scroll-behavior: smooth;
+html { scroll-behavior: smooth; }
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0%   { background-position: -800px 0; }
+  100% { background-position: 800px 0; }
 }
+
+.skeleton {
+  background: linear-gradient(90deg, #E8EFF8 25%, #F4F8FF 50%, #E8EFF8 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite linear;
+  border-radius: 8px;
+}
+
+/* Fade in animation */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-up { animation: fadeUp 0.35s ease-out forwards; }
+
+/* Card hover lift */
+.card-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(7, 112, 227, 0.12), 0 2px 8px rgba(0,0,0,0.06);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #F0F6FF; }
+::-webkit-scrollbar-thumb { background: #B4CCEC; border-radius: 3px; }
