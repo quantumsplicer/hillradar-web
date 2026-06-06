@@ -1,10 +1,12 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { getDestinations, CITY_REGIONS, DESTINATION_TAGS, formatMins, vibeScore, displayVibeScore, getScoreColor, getScoreLabel } from '@/lib/api';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { getLiveDestinations, getDestinations, CITY_REGIONS, DESTINATION_TAGS, formatMins, vibeScore, displayVibeScore, getScoreLabel } from '@/lib/api';
 import DestinationCard from '@/components/DestinationCard';
 import FeaturedRoutes from '@/components/FeaturedRoutes';
 import SkeletonCard, { SkeletonBestPick } from '@/components/SkeletonCard';
 import Link from 'next/link';
+
+const REFRESH_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 
 const REGION_FILTERS = [
   { label: 'All Regions', value: null },
@@ -13,81 +15,128 @@ const REGION_FILTERS = [
   { label: 'Jammu & Kashmir', value: 'JK' },
 ];
 
-// ─── Mountain Hero SVG ───────────────────────────────────────────────
+// ─── Mountain Hero ───────────────────────────────────────────────────
 function MountainHero({ children }) {
   return (
     <section className="relative overflow-hidden select-none" style={{ background: 'linear-gradient(175deg, #040E26 0%, #082456 30%, #0D4080 55%, #1A6FB5 75%, #4899D4 90%, #A8D4EE 100%)', minHeight: 480 }}>
-      {/* Stars */}
       {[
         [8,6],[14,12],[22,4],[31,9],[40,5],[52,14],[61,7],[70,11],[80,4],[88,8],[96,13],
         [5,20],[18,18],[28,22],[45,17],[58,21],[73,19],[91,16],[3,30],[35,26],[67,28],[85,24],
       ].map(([l, t], i) => (
-        <div key={i} className="absolute rounded-full bg-white" style={{ left: `${l}%`, top: `${t}%`, width: i % 3 === 0 ? 2 : 1.5, height: i % 3 === 0 ? 2 : 1.5, opacity: 0.5 + (i % 5) * 0.1 }} />
+        <div key={i} className="absolute rounded-full bg-white" style={{ left:`${l}%`, top:`${t}%`, width: i%3===0?2:1.5, height: i%3===0?2:1.5, opacity: 0.5+(i%5)*0.1 }} />
       ))}
-
-      {/* Content */}
-      <div className="relative z-10" style={{ paddingTop: 72, paddingBottom: 180 }}>
-        {children}
-      </div>
-
-      {/* Mountain layers SVG */}
+      <div className="relative z-10" style={{ paddingTop: 72, paddingBottom: 180 }}>{children}</div>
       <svg viewBox="0 0 1440 260" preserveAspectRatio="none" className="absolute bottom-0 left-0 w-full" style={{ height: 200 }}>
-        {/* Far mountains — lightest */}
         <path d="M0,200 L80,155 L160,175 L260,130 L360,155 L440,120 L540,148 L640,125 L740,150 L840,118 L940,145 L1040,122 L1140,150 L1240,130 L1340,155 L1440,140 L1440,260 L0,260 Z" fill="#1A5E9A" opacity="0.55"/>
-        {/* Far snow caps */}
         <polygon points="440,120 455,100 470,120" fill="white" opacity="0.7"/>
         <polygon points="840,118 855,98 870,118" fill="white" opacity="0.65"/>
         <polygon points="1040,122 1055,102 1070,122" fill="white" opacity="0.6"/>
-
-        {/* Mid mountains */}
         <path d="M0,220 L100,165 L180,195 L300,140 L400,170 L500,125 L600,158 L700,130 L800,165 L900,128 L1000,162 L1100,135 L1200,165 L1320,145 L1440,160 L1440,260 L0,260 Z" fill="#0D3F6E" opacity="0.75"/>
-        {/* Mid snow caps */}
         <polygon points="300,140 318,118 336,140" fill="white" opacity="0.75"/>
         <polygon points="500,125 518,104 536,125" fill="white" opacity="0.7"/>
         <polygon points="900,128 918,107 936,128" fill="white" opacity="0.72"/>
-        <polygon points="1200,165 1215,144 1230,165" fill="white" opacity="0.65"/>
-
-        {/* Near mountains — darkest */}
         <path d="M0,260 L60,200 L140,235 L240,175 L340,215 L440,168 L540,205 L640,170 L740,208 L820,172 L920,210 L1020,174 L1120,210 L1240,180 L1360,215 L1440,190 L1440,260 Z" fill="#071E3D"/>
-        {/* Near snow caps */}
         <polygon points="240,175 258,152 276,175" fill="white" opacity="0.85"/>
         <polygon points="440,168 458,146 476,168" fill="white" opacity="0.8"/>
         <polygon points="820,172 838,150 856,172" fill="white" opacity="0.82"/>
         <polygon points="1020,174 1038,152 1056,174" fill="white" opacity="0.78"/>
-        <polygon points="1360,215 1378,193 1396,215" fill="white" opacity="0.72"/>
       </svg>
     </section>
   );
 }
 
-// ─── Score dot ───────────────────────────────────────────────────────
-function ScoreDot({ congestionScore }) {
-  const s = vibeScore(congestionScore);
-  const color = s === null ? '#94a3b8' : s >= 9 ? '#059669' : s >= 6 ? '#D97706' : '#DC2626';
-  return <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />;
+// ─── Last updated pill ───────────────────────────────────────────────
+function LastUpdated({ isoString, refreshing }) {
+  const [label, setLabel] = useState('');
+  useEffect(() => {
+    function calc() {
+      if (!isoString) return setLabel('');
+      const mins = Math.round((Date.now() - new Date(isoString).getTime()) / 60000);
+      setLabel(mins <= 0 ? 'Just updated' : mins === 1 ? '1 min ago' : `${mins} min ago`);
+    }
+    calc();
+    const t = setInterval(calc, 30000);
+    return () => clearInterval(t);
+  }, [isoString]);
+
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-[#64748B]">
+      <span className={`inline-block w-1.5 h-1.5 rounded-full ${refreshing ? 'bg-amber-400 animate-pulse' : 'bg-green-500'}`} />
+      {refreshing ? 'Refreshing…' : label ? `Updated ${label}` : ''}
+    </div>
+  );
 }
 
 // ─── Home page ───────────────────────────────────────────────────────
 export default function HomePage() {
   const [originCity, setOriginCity] = useState('');
   const [destinations, setDestinations] = useState([]);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [regionFilter, setRegionFilter] = useState(null);
+  const lastFetchRef = useRef(0);
 
+  // Load saved city once on mount
   useEffect(() => {
     const saved = localStorage.getItem('origin_city');
     if (saved) setOriginCity(saved);
   }, []);
 
+  const fetchData = useCallback(async (city, isBackground = false) => {
+    if (!isBackground) { setLoading(true); setError(null); }
+    else setRefreshing(true);
+    try {
+      const data = await getLiveDestinations(city || null);
+      setDestinations(data.destinations || []);
+      setLastUpdated(data.last_updated);
+      lastFetchRef.current = Date.now();
+      setError(null);
+    } catch {
+      // Fallback to regular endpoint
+      try {
+        const fallback = await getDestinations(city || null);
+        setDestinations(fallback);
+        setLastUpdated(null);
+        lastFetchRef.current = Date.now();
+        setError(null);
+      } catch {
+        if (!isBackground) setError('Could not reach server — it may be waking up (free plan). Retry in 30s.');
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  // Fetch when city changes
   useEffect(() => {
-    setLoading(true);
-    setError(null);
-    getDestinations(originCity || null)
-      .then(d => { setDestinations(d); setLoading(false); })
-      .catch(() => { setError('Could not reach the server — it may be waking up (30s). Tap retry.'); setLoading(false); });
-  }, [originCity]);
+    fetchData(originCity);
+  }, [originCity, fetchData]);
+
+  // Poll every 10 min
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const age = Date.now() - lastFetchRef.current;
+      if (age >= REFRESH_INTERVAL_MS) fetchData(originCity, true);
+    }, 60000); // check every minute, refresh if 10 min old
+    return () => clearInterval(interval);
+  }, [originCity, fetchData]);
+
+  // Refresh on tab focus if data is stale
+  useEffect(() => {
+    function onFocus() {
+      const age = Date.now() - lastFetchRef.current;
+      if (age >= REFRESH_INTERVAL_MS) fetchData(originCity, true);
+    }
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') onFocus();
+    });
+    return () => window.removeEventListener('focus', onFocus);
+  }, [originCity, fetchData]);
 
   function handleCitySelect(city) {
     setOriginCity(city);
@@ -98,10 +147,9 @@ export default function HomePage() {
 
   const citySelected = !!originCity;
   const best = destinations[0];
-  const filteredDests = destinations.filter(dest => {
-    if (!regionFilter) return true;
-    return (DESTINATION_TAGS[dest.name] || []).includes(regionFilter);
-  });
+  const filteredDests = destinations.filter(dest =>
+    !regionFilter || (DESTINATION_TAGS[dest.name] || []).includes(regionFilter)
+  );
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#F0F6FF' }}>
@@ -122,13 +170,6 @@ export default function HomePage() {
             <a href="#destinations" className="hover:text-[#0770E3] transition-colors">Destinations</a>
             <a href="#routes" className="hover:text-[#0770E3] transition-colors">Routes</a>
           </nav>
-          <a href="https://expo.dev/accounts/maanav_seth/projects/hillradar" target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg text-white transition-colors"
-            style={{ background: '#0770E3' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>
-            <span className="hidden sm:inline">Get the App</span>
-            <span className="sm:hidden">App</span>
-          </a>
         </div>
       </header>
 
@@ -137,7 +178,7 @@ export default function HomePage() {
         <div className="max-w-3xl mx-auto px-4 text-center">
           <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-1.5 text-white/80 text-xs font-semibold mb-5 tracking-wide uppercase">
             <span className="inline-block w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-            Live crowd scores · Updated every 4 hours
+            Live crowd scores · Updated every 10 minutes
           </div>
           <h1 className="text-3xl sm:text-5xl font-black text-white leading-tight mb-3" style={{ textShadow: '0 2px 20px rgba(0,0,0,0.4)' }}>
             Find India's quietest<br className="hidden sm:inline" /> hill stations 🏔️
@@ -175,17 +216,10 @@ export default function HomePage() {
                 <span className="hidden sm:inline">Explore</span>
               </button>
             </div>
-
-            {/* Score legend */}
             <div className="flex items-center justify-center gap-5 mt-4">
-              {[
-                { dot: '#059669', label: '9–10 Chill' },
-                { dot: '#D97706', label: '6–8 Busy' },
-                { dot: '#DC2626', label: '<6 Avoid' },
-              ].map(({ dot, label }) => (
+              {[{ dot:'#059669', label:'9–10 Chill' }, { dot:'#D97706', label:'6–8 Busy' }, { dot:'#DC2626', label:'<6 Avoid' }].map(({ dot, label }) => (
                 <span key={label} className="flex items-center gap-1.5 text-white/70 text-xs font-medium">
-                  <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: dot }} />
-                  {label}
+                  <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: dot }} />{label}
                 </span>
               ))}
             </div>
@@ -201,7 +235,7 @@ export default function HomePage() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#E2EAF4]">
               <div>
                 <h2 className="font-bold text-[#0D1B2A]">Where are you starting from?</h2>
-                <p className="text-xs text-[#64748B] mt-0.5">We'll calculate travel times from your city</p>
+                <p className="text-xs text-[#64748B] mt-0.5">We'll calculate live travel times from your city</p>
               </div>
               <button onClick={() => setPickerOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#F0F6FF] text-[#64748B] transition-colors">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
@@ -218,10 +252,7 @@ export default function HomePage() {
                   <div className="flex flex-wrap gap-2">
                     {region.cities.map(city => (
                       <button key={city} onClick={() => handleCitySelect(city)}
-                        className={`px-3.5 py-1.5 rounded-lg border text-sm font-medium transition-all
-                          ${originCity === city
-                            ? 'text-white border-transparent'
-                            : 'bg-white text-[#374151] border-[#E2EAF4] hover:border-[#0770E3] hover:text-[#0770E3]'}`}
+                        className={`px-3.5 py-1.5 rounded-lg border text-sm font-medium transition-all ${originCity === city ? 'text-white border-transparent' : 'bg-white text-[#374151] border-[#E2EAF4] hover:border-[#0770E3] hover:text-[#0770E3]'}`}
                         style={originCity === city ? { background: '#0770E3' } : {}}>
                         {city}
                       </button>
@@ -237,26 +268,18 @@ export default function HomePage() {
       {/* ── Main content ───────────────────────────────────────── */}
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-8 space-y-8">
 
-        {/* Error state */}
         {error && (
           <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3.5 text-sm text-amber-800">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mt-0.5 shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             <div className="flex-1">{error}</div>
-            <button onClick={() => { setError(null); setLoading(true); getDestinations(originCity || null).then(d => { setDestinations(d); setLoading(false); }).catch(() => { setError('Still unreachable. Try again shortly.'); setLoading(false); }); }}
-              className="text-amber-700 font-semibold hover:underline shrink-0">Retry</button>
+            <button onClick={() => fetchData(originCity)} className="text-amber-700 font-semibold hover:underline shrink-0">Retry</button>
           </div>
         )}
 
-        {/* Featured routes (no city selected) */}
         {!citySelected && !loading && !error && (
           <div id="routes">
-            {/* Stats bar */}
             <div className="grid grid-cols-3 gap-4 mb-8">
-              {[
-                { n: '40+', label: 'Hill Stations' },
-                { n: '28',  label: 'Origin Cities' },
-                { n: '4h',  label: 'Refresh Rate' },
-              ].map(s => (
+              {[{ n:'40+', label:'Hill Stations' }, { n:'28', label:'Origin Cities' }, { n:'10m', label:'Refresh Rate' }].map(s => (
                 <div key={s.label} className="bg-white rounded-xl border border-[#E2EAF4] shadow-sm p-4 text-center">
                   <div className="text-2xl font-black" style={{ color: '#0770E3' }}>{s.n}</div>
                   <div className="text-xs text-[#64748B] font-medium mt-0.5">{s.label}</div>
@@ -267,7 +290,6 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Loading skeleton */}
         {loading && citySelected && (
           <div className="space-y-6">
             <SkeletonBestPick />
@@ -277,7 +299,6 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Loading — no city yet */}
         {loading && !citySelected && (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <div className="w-10 h-10 rounded-full border-4 border-[#E8F3FF] border-t-[#0770E3] animate-spin" />
@@ -285,19 +306,21 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Best pick */}
         {!loading && citySelected && best && (
           <div className="fade-up">
-            <div className="flex items-center gap-2 mb-3">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="#F59E0B" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              <span className="text-xs font-bold text-[#64748B] uppercase tracking-widest">Best Pick Right Now</span>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#F59E0B" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                <span className="text-xs font-bold text-[#64748B] uppercase tracking-widest">Best Pick Right Now</span>
+              </div>
+              <LastUpdated isoString={lastUpdated} refreshing={refreshing} />
             </div>
             <Link href={`/destination/${best.name.toLowerCase().replace(/\s+/g, '-')}?origin=${encodeURIComponent(originCity)}`}
               className="block bg-white rounded-2xl border-2 p-5 sm:p-6 card-lift group" style={{ borderColor: '#0770E3' }}>
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <ScoreDot congestionScore={best.congestion_score} />
+                    <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: (v => v>=9?'#059669':v>=6?'#D97706':'#DC2626')(vibeScore(best.congestion_score)||0) }} />
                     <span className="text-xs font-semibold text-[#64748B]">{getScoreLabel(best.congestion_score)}</span>
                   </div>
                   <h2 className="text-2xl sm:text-3xl font-black text-[#0D1B2A] group-hover:text-[#0770E3] transition-colors mb-1.5">{best.name}</h2>
@@ -313,7 +336,7 @@ export default function HomePage() {
                   </div>
                 </div>
                 <div className="shrink-0 flex flex-col items-center justify-center rounded-2xl px-5 py-4 border" style={{ background: '#E8F3FF', borderColor: '#B4D0F5' }}>
-                  <div className="text-4xl font-black" style={{ color: vibeScore(best.congestion_score) >= 9 ? '#059669' : vibeScore(best.congestion_score) >= 6 ? '#D97706' : '#DC2626' }}>
+                  <div className="text-4xl font-black" style={{ color: (v => v>=9?'#059669':v>=6?'#D97706':'#DC2626')(vibeScore(best.congestion_score)||0) }}>
                     {displayVibeScore(best.congestion_score)}
                   </div>
                   <div className="text-xs text-[#64748B] mt-0.5">/10 vibe</div>
@@ -324,14 +347,12 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* All destinations */}
         {!loading && citySelected && destinations.length > 0 && (
           <div id="destinations" className="fade-up">
-            {/* Region filters */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
               <div>
                 <h2 className="font-bold text-[#0D1B2A]">All Destinations from <span style={{ color: '#0770E3' }}>{originCity}</span></h2>
-                <p className="text-xs text-[#64748B] mt-0.5">{filteredDests.length} hill station{filteredDests.length !== 1 ? 's' : ''} found</p>
+                <p className="text-xs text-[#64748B] mt-0.5">{filteredDests.length} hill station{filteredDests.length !== 1 ? 's' : ''} · sorted by least crowded</p>
               </div>
               <div className="flex gap-2 flex-wrap sm:ml-auto">
                 {REGION_FILTERS.map(f => (
@@ -343,7 +364,6 @@ export default function HomePage() {
                 ))}
               </div>
             </div>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredDests.map(dest => (
                 <DestinationCard key={dest.id} destination={dest} originCity={originCity} showTimes={citySelected} />
@@ -353,12 +373,9 @@ export default function HomePage() {
         )}
       </main>
 
-      {/* ── Footer ─────────────────────────────────────────────── */}
       <footer className="mt-auto" style={{ background: '#071E3D' }}>
-        {/* Mini mountain silhouette */}
         <svg viewBox="0 0 1440 60" preserveAspectRatio="none" className="w-full" style={{ height: 40, display: 'block', marginBottom: -1 }}>
           <path d="M0,60 L120,30 L240,50 L360,20 L480,40 L600,15 L720,35 L840,18 L960,38 L1080,22 L1200,42 L1320,28 L1440,45 L1440,60 Z" fill="#071E3D"/>
-          <path d="M0,60 L200,40 L360,52 L520,30 L680,48 L840,32 L1000,50 L1160,35 L1320,48 L1440,38 L1440,60 Z" fill="#0A2A52"/>
         </svg>
         <div className="max-w-6xl mx-auto px-4 py-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -368,7 +385,7 @@ export default function HomePage() {
               <span className="text-white/40 text-xs">— find your escape</span>
             </div>
             <div className="flex gap-6 text-xs text-white/50 font-medium">
-              <span>Crowd data refreshes every 4 hours</span>
+              <span>Crowd data refreshes every 10 minutes</span>
               <span>Powered by Google Maps</span>
             </div>
           </div>
