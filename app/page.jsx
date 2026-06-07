@@ -384,8 +384,9 @@ export default function HomePage() {
               <span className="font-black text-white">HillRadar</span>
               <span className="text-white/40 text-xs">— find your escape</span>
             </div>
-            <div className="flex gap-6 text-xs text-white/50 font-medium">
+            <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 text-xs text-white/50 font-medium">
               <span>Crowd data refreshes every 10 minutes</span>
+              <span>Typical times & best-time picks are AI-analyzed from the last 15 days of traffic data</span>
               <span>Powered by Google Maps</span>
             </div>
           </div>

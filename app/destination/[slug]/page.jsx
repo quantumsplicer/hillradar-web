@@ -169,6 +169,7 @@ export default async function DestinationPage({ params, searchParams }) {
                 {bestTimeData && (
                   <div className="mt-2 text-xs text-[#64748B]">Best: <strong className="text-green-600">{bestTimeData.time_slot}</strong></div>
                 )}
+                <div className="mt-2 text-[10px] text-[#94a3b8] italic">AI-analyzed from the last 15 days of traffic data</div>
               </div>
             </>
           ) : (
@@ -210,8 +211,8 @@ export default async function DestinationPage({ params, searchParams }) {
           <div className="bg-white rounded-2xl border border-[#E2EAF4] shadow-sm p-5">
             <div className="flex items-center justify-between mb-1">
               <div>
-                <h2 className="font-bold text-[#0D1B2A] text-sm">30-Day Vibe Score Trend</h2>
-                <p className="text-xs text-[#64748B]">Higher score = less crowded = better time to visit</p>
+                <h2 className="font-bold text-[#0D1B2A] text-sm">15-Day Vibe Score Trend</h2>
+                <p className="text-xs text-[#64748B]">Higher score = less crowded = better time to visit · AI-analyzed from the last 15 days of traffic data</p>
               </div>
               <div className="flex items-center gap-1.5 text-[10px] text-[#64748B]">
                 <span className="inline-block w-3 h-0.5 rounded" style={{ background: '#0770E3' }} />
@@ -227,7 +228,10 @@ export default async function DestinationPage({ params, searchParams }) {
         {/* Best time to leave */}
         {bestTimeData && (
           <div className="bg-white rounded-2xl border border-[#E2EAF4] shadow-sm p-5">
-            <h2 className="font-bold text-[#0D1B2A] text-sm mb-3">Best Time to Leave</h2>
+            <div className="flex items-baseline justify-between gap-3 mb-3">
+              <h2 className="font-bold text-[#0D1B2A] text-sm">Best Time to Leave</h2>
+              <span className="text-[10px] text-[#94a3b8] italic">AI-analyzed · last 15 days of data</span>
+            </div>
             <div className="flex items-center gap-4 p-3 rounded-xl" style={{ background: '#F0FDF4', border: '1px solid #D1FAE5' }}>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style={{ background: '#DCFCE7' }}>⏰</div>
               <div>
@@ -278,8 +282,9 @@ export default async function DestinationPage({ params, searchParams }) {
         <svg viewBox="0 0 1440 40" preserveAspectRatio="none" className="w-full" style={{ height: 30, display: 'block' }}>
           <path d="M0,40 L120,15 L280,30 L440,8 L600,22 L760,5 L920,20 L1080,8 L1240,24 L1440,12 L1440,40 Z" fill="#071E3D"/>
         </svg>
-        <div className="max-w-4xl mx-auto px-4 py-6 text-center text-xs text-white/40">
-          🏔️ <strong className="text-white/60">HillRadar</strong> · Real-time crowd scores for India's hill stations · Powered by Google Maps
+        <div className="max-w-4xl mx-auto px-4 py-6 text-center text-xs text-white/40 space-y-1">
+          <div>🏔️ <strong className="text-white/60">HillRadar</strong> · Real-time crowd scores for India's hill stations · Powered by Google Maps</div>
+          <div className="text-white/30">Typical times & best-time picks are AI-analyzed from the last 15 days of traffic data</div>
         </div>
       </footer>
     </div>
