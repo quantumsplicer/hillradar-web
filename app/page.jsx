@@ -386,7 +386,7 @@ export default function HomePage() {
             </div>
             <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 text-xs text-white/50 font-medium">
               <span>Crowd data refreshes every 10 minutes</span>
-              <span>Typical times & best-time picks are AI-analyzed from the last 15 days of traffic data</span>
+              <span>Trends & best-time picks are AI-analyzed from the last 15 days of traffic data</span>
               <span>Powered by Google Maps</span>
             </div>
           </div>

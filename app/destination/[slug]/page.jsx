@@ -165,11 +165,13 @@ export default async function DestinationPage({ params, searchParams }) {
               <div className="bg-white rounded-2xl border border-[#E2EAF4] shadow-sm p-5" style={{ borderTop: '3px solid #94a3b8' }}>
                 <div className="text-xs font-bold text-[#64748B] uppercase tracking-widest mb-2">Typical Time</div>
                 <div className="text-3xl font-black text-[#374151] mb-1">{formatMins(dest.typical_duration_mins)}</div>
-                <div className="text-xs text-[#64748B]">without traffic</div>
+                <div className="text-xs text-[#64748B]">Google Maps baseline estimate (low-traffic hours)</div>
                 {bestTimeData && (
-                  <div className="mt-2 text-xs text-[#64748B]">Best: <strong className="text-green-600">{bestTimeData.time_slot}</strong></div>
+                  <div className="mt-2 text-xs text-[#64748B]">
+                    Best: <strong className="text-green-600">{bestTimeData.time_slot}</strong>
+                    <span className="text-[#94a3b8]"> (15-day AI pattern)</span>
+                  </div>
                 )}
-                <div className="mt-2 text-[10px] text-[#94a3b8] italic">AI-analyzed from the last 15 days of traffic data</div>
               </div>
             </>
           ) : (
@@ -284,7 +286,7 @@ export default async function DestinationPage({ params, searchParams }) {
         </svg>
         <div className="max-w-4xl mx-auto px-4 py-6 text-center text-xs text-white/40 space-y-1">
           <div>🏔️ <strong className="text-white/60">HillRadar</strong> · Real-time crowd scores for India's hill stations · Powered by Google Maps</div>
-          <div className="text-white/30">Typical times & best-time picks are AI-analyzed from the last 15 days of traffic data</div>
+          <div className="text-white/30">Trends & best-time-to-leave picks are AI-analyzed from the last 15 days of traffic data · live & typical times come straight from Google Maps</div>
         </div>
       </footer>
     </div>
