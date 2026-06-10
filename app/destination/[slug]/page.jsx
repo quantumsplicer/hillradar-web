@@ -1,4 +1,4 @@
-import { getDestinations, getDestinationTrend, getBestTime, displayVibeScore, formatMins, getScoreLabel, vibeScore, DESTINATION_TAGS } from '@/lib/api';
+import { getLiveDestinations, getDestinationTrend, getBestTime, displayVibeScore, formatMins, getScoreLabel, vibeScore, DESTINATION_TAGS } from '@/lib/api';
 import HotelLinks from '@/components/HotelLinks';
 import TrendChart from '@/components/TrendChart';
 import Link from 'next/link';
@@ -33,7 +33,8 @@ export default async function DestinationPage({ params, searchParams }) {
   let destinations = [];
   let fetchError = false;
   try {
-    destinations = await getDestinations(originCity || null);
+    const live = await getLiveDestinations(originCity || null);
+    destinations = live.destinations || [];
   } catch { fetchError = true; }
 
   const dest = destinations.find(d => d.name.toLowerCase() === name.toLowerCase());
