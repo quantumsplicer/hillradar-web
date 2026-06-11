@@ -328,7 +328,7 @@ export default function HomePage() {
                   <div className="flex flex-wrap items-center gap-3 text-sm">
                     <span className="flex items-center gap-1.5">
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0770E3" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                      <span className="text-[#64748B]">Now:</span>
+                      <span className="text-[#64748B]">Worst-case:</span>
                       <strong style={{ color: '#0770E3' }}>{formatMins(best.current_duration_mins)}</strong>
                     </span>
                     <span className="text-[#CBD5E1]">·</span>

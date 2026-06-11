@@ -149,18 +149,18 @@ export default async function DestinationPage({ params, searchParams }) {
             <div className="text-[10px] text-[#94a3b8] mt-1">out of 10</div>
           </div>
 
-          {/* Travel now */}
+          {/* Worst-case vs typical travel time */}
           {originCity ? (
             <>
               <div className="bg-white rounded-2xl border border-[#E2EAF4] shadow-sm p-5" style={{ borderTop: '3px solid #0770E3' }}>
-                <div className="text-xs font-bold text-[#64748B] uppercase tracking-widest mb-2">Right Now</div>
+                <div className="text-xs font-bold text-[#64748B] uppercase tracking-widest mb-2">Worst-Case ETA</div>
                 <div className="text-3xl font-black mb-1" style={{ color: '#0770E3' }}>{formatMins(dest.current_duration_mins)}</div>
-                <div className="text-xs text-[#64748B]">with current traffic</div>
+                <div className="text-xs text-[#64748B]">avg. worst case, based on recent traffic</div>
                 {trafficDelta > 0 && (
-                  <div className="mt-2 text-xs font-semibold" style={{ color: '#D97706' }}>+{formatMins(trafficDelta)} vs usual</div>
+                  <div className="mt-2 text-xs font-semibold" style={{ color: '#D97706' }}>+{formatMins(trafficDelta)} buffer vs typical</div>
                 )}
                 {trafficDelta <= 0 && dest.current_duration_mins && (
-                  <div className="mt-2 text-xs font-semibold text-green-600">Roads are clear 🟢</div>
+                  <div className="mt-2 text-xs font-semibold text-green-600">Rarely congested 🟢</div>
                 )}
               </div>
               <div className="bg-white rounded-2xl border border-[#E2EAF4] shadow-sm p-5" style={{ borderTop: '3px solid #94a3b8' }}>
@@ -199,12 +199,12 @@ export default async function DestinationPage({ params, searchParams }) {
             <div>
               <div className="text-sm font-semibold text-[#0D1B2A]">
                 {trafficDelta > 15
-                  ? `Heavy traffic — ${formatMins(trafficDelta)} longer than usual`
+                  ? `Big traffic buffer — plan for ${formatMins(trafficDelta)} extra`
                   : trafficDelta > 0
-                    ? `Slight traffic — ${formatMins(trafficDelta)} added today`
-                    : 'Roads are clear — great time to leave!'}
+                    ? `Small traffic buffer — ${formatMins(trafficDelta)} extra built in`
+                    : 'This route rarely sees traffic buildup'}
               </div>
-              <div className="text-xs text-[#64748B] mt-0.5">Based on current Google Maps traffic data</div>
+              <div className="text-xs text-[#64748B] mt-0.5">Worst-Case ETA = recent traffic patterns + a safety margin</div>
             </div>
           </div>
         )}
@@ -287,7 +287,7 @@ export default async function DestinationPage({ params, searchParams }) {
         </svg>
         <div className="max-w-4xl mx-auto px-4 py-6 text-center text-xs text-white/40 space-y-1">
           <div>🏔️ <strong className="text-white/60">HillRadar</strong> · Real-time crowd scores for India's hill stations · Powered by Google Maps</div>
-          <div className="text-white/30">Trends & best-time-to-leave picks are AI-analyzed from the last 15 days of traffic data · live & typical times come straight from Google Maps</div>
+          <div className="text-white/30">Trends & best-time-to-leave picks are AI-analyzed from the last 15 days of traffic data · Worst-Case ETA is an avg. worst-case estimate from recent traffic patterns, Typical is Google Maps best-case (free-flow) time</div>
         </div>
       </footer>
     </div>
